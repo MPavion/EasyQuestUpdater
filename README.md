@@ -78,8 +78,8 @@ Once the download reaches 100%:
 1. Make sure your Quest is connected via USB with USB Debugging accepted
 2. Click **Install via ADB**
 3. The app reboots your headset into **recovery mode** automatically
-4. Put on the headset — you'll see a recovery menu with white text on a dark background
-5. Use the **Volume buttons** to scroll to **"Apply update from ADB"**
+4. Put on the headset — you may see a black screen saying **"No command"**. This is normal. To reveal the menu: **hold the Power button, then press Volume Up once**
+5. Use the **Volume Down** button to scroll to **"Apply update from ADB"**
 6. Press the **Power button** to select it
 7. The screen will show **"Now send the package via ADB sideload…"**
 8. Click **OK** in the EasyQuestUpdater dialog
@@ -105,6 +105,7 @@ Meta's download page has a session timeout that kicks in while the 1.3 GB file i
 | Download fails immediately | The URL has probably expired — click **Open Browser & Capture URL** again to get a fresh one |
 | Download stuck at 0% | The URL may have expired; capture a new one |
 | Headset doesn't enter sideload mode | Make sure you selected "Apply update from ADB" in the recovery menu, not just "Apply update" |
+| See "No command" screen | Normal — hold Power, then press Volume Up once to reveal the recovery menu |
 | Recovery menu won't appear | Try holding Power + Volume Down together for 10 seconds to force recovery mode |
 
 ---

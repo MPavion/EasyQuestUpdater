@@ -4,11 +4,13 @@
 import os
 import sys
 import json
+import shutil
 import socket
 import subprocess
 import threading
 import time
 import webbrowser
+import zipfile
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -420,6 +422,20 @@ class DownloadWorker(QObject):
                 self.log.emit(f"Size: {total/1024**3:.2f} GB")
             else:
                 self.log.emit("Size: unknown (server did not send Content-Length)")
+
+            # Disk space check — need at least the bytes still to download + 200 MB headroom
+            already_have = resume_from if resp.status_code == 206 else 0
+            still_needed = (total - already_have) if total else 2 * 1024 ** 3
+            free_bytes   = shutil.disk_usage(output_dir).free
+            if free_bytes < still_needed + 200 * 1024 ** 2:
+                self.error.emit(
+                    f"Not enough disk space.\n\n"
+                    f"Need:      {still_needed / 1024**3:.2f} GB\n"
+                    f"Available: {free_bytes / 1024**3:.2f} GB\n\n"
+                    f"Free up space on this drive and try again."
+                )
+                return
+
             self.log.emit("Downloading — will resume if interrupted.")
 
             downloaded = resume_from
@@ -439,6 +455,37 @@ class DownloadWorker(QObject):
                         last_t, last_b = now, downloaded
                     self.progress.emit(downloaded, total, speed)
 
+            # ── Validate before finalising ────────────────────────────────
+            self.log.emit("Validating download…")
+            actual = partial_path.stat().st_size
+            if total and actual != total:
+                self.error.emit(
+                    f"File size mismatch after download.\n\n"
+                    f"Expected: {total:,} bytes\n"
+                    f"Got:      {actual:,} bytes\n\n"
+                    "The file may be corrupt. Click Download Firmware to try again."
+                )
+                return
+
+            if filename.lower().endswith(".zip"):
+                self.log.emit("Checking ZIP integrity — this may take a minute…")
+                try:
+                    with zipfile.ZipFile(partial_path) as zf:
+                        bad = zf.testzip()
+                    if bad:
+                        self.error.emit(
+                            f"ZIP integrity check failed — first bad file: {bad}\n\n"
+                            "The download appears corrupt. Click Download Firmware to try again."
+                        )
+                        return
+                except zipfile.BadZipFile as exc:
+                    self.error.emit(
+                        f"Downloaded file is not a valid ZIP archive: {exc}\n\n"
+                        "Click Download Firmware to try again."
+                    )
+                    return
+
+            self.log.emit("Validation passed ✓")
             partial_path.rename(final_path)
             progress_file.unlink(missing_ok=True)
             self.log.emit("Download complete!")
@@ -773,12 +820,38 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
 
     def _check_partial(self):
-        self._log_line("Checking for incomplete downloads…")
+        self._log_line("Checking for downloads…")
         output_dir = Path(self._dir_edit.text())
         if not output_dir.exists():
             self._log_line("  None found.")
             return
 
+        # ── Completed firmware files ──────────────────────────────────────
+        fw_exts = {".zip", ".bin", ".img", ".apk"}
+        completed = sorted(
+            [p for p in output_dir.iterdir()
+             if p.suffix.lower() in fw_exts
+             and not p.name.endswith(".partial")
+             and p.stat().st_size > 100 * 1024 * 1024],
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
+        if completed:
+            fw = completed[0]
+            size_gb = fw.stat().st_size / 1024**3
+            self._firmware_path = fw
+            self._inst_btn.setEnabled(True)
+            self._progress.setRange(0, 1000)
+            self._progress.setValue(1000)
+            self._pct_label.setText("100%")
+            self._prog_label.setText("Download complete")
+            self._log_line("─" * 44)
+            self._log_line(f"  Firmware ready: {fw.name}  ({size_gb:.2f} GB)")
+            self._log_line("  Click  Install via ADB  to install it.")
+            self._log_line("─" * 44)
+            return
+
+        # ── Incomplete / partial downloads ────────────────────────────────
         partials = sorted(
             output_dir.glob("*.partial"),
             key=lambda p: p.stat().st_mtime,
@@ -788,7 +861,7 @@ class MainWindow(QMainWindow):
             self._log_line("  None found.")
             return
 
-        partial = partials[0]
+        partial    = partials[0]
         downloaded = partial.stat().st_size
         if downloaded == 0:
             self._log_line("  None found.")
@@ -1056,7 +1129,10 @@ class MainWindow(QMainWindow):
             self,
             "Recovery Menu — Action Required",
             "The headset is rebooting into recovery mode.\n\n"
-            "When the recovery menu appears on the headset:\n\n"
+            "You may see a black screen saying  ‘No command’  — this is normal.\n"
+            "If so:  hold the POWER button, then press VOLUME UP once.\n"
+            "The full recovery menu will appear.\n\n"
+            "In the recovery menu:\n\n"
             "  1.  Use the VOLUME buttons to scroll to\n"
             "       ‘Apply update from ADB’\n\n"
             "  2.  Press the POWER button to select it.\n\n"
