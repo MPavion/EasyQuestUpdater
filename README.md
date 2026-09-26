@@ -1,6 +1,8 @@
 # EasyQuestUpdater
 
-**EasyQuestUpdater** solves one frustrating problem: Meta's firmware download page times out before the file finishes downloading, especially on slow internet connections. This app downloads the firmware reliably in the background — with automatic resume if interrupted — then installs it directly onto your Quest headset via USB.
+**EasyQuestUpdater** solves one frustrating problem: when you start a firmware download from Meta's website, the Quest headset goes to sleep after a few minutes of inactivity in ADB mode — dropping the connection and invalidating the download session. On a slower internet connection, the multi-gigabyte firmware file will never finish before the headset sleeps and kills it.
+
+This app captures the download URL the moment it's generated and downloads the firmware independently in the background — with full resume support if interrupted — completely sidestepping the sleep timeout. Once downloaded, it installs the firmware directly onto your headset via USB. Works with any Quest firmware update, not just the latest.
 
 ---
 
@@ -8,7 +10,7 @@
 
 1. Opens the Meta firmware page inside a monitored browser window
 2. The moment you click **Start Download**, the app intercepts the URL silently
-3. Downloads the firmware (~1.3 GB) to your PC with full resume support — if your connection drops, it picks up where it left off
+3. Downloads the firmware to your PC with full resume support — if your connection drops, it picks up where it left off
 4. Installs the firmware onto your Quest via ADB sideload over USB
 
 ---
@@ -64,7 +66,7 @@ ADB is a free tool from Google that lets a PC communicate with Android devices o
 
 ### Step 2 — Wait for the download
 
-The app shows download progress with a percentage and speed. The firmware is around 1.3 GB.
+The app shows download progress with a percentage and speed. Firmware size varies by update — typically several gigabytes.
 
 - If the download is interrupted (power cut, sleep, network drop), just relaunch the app and capture the URL again — it will resume from where it left off
 - The file is saved to `Downloads\quest-firmware` on your PC
@@ -92,7 +94,9 @@ Once the download reaches 100%:
 
 ## Why does this exist?
 
-Meta's download page has a session timeout that kicks in while the 1.3 GB file is still downloading. On fast connections this isn't a problem, but on slower connections (or with network interruptions) the download never completes. EasyQuestUpdater captures the URL the moment it's generated and downloads it independently, with full resume support, so the Meta session timeout doesn't matter.
+When your Quest headset is connected in ADB (developer) mode, it goes to sleep after a few minutes of inactivity — and when it does, it drops the connection to Meta's firmware page and invalidates the download session. On a fast connection this doesn't matter because the file downloads before the headset sleeps. On a slower connection, the firmware is several gigabytes and will take long enough that the headset will sleep and kill the download repeatedly, making it impossible to complete through the browser.
+
+EasyQuestUpdater captures the download URL the instant it's generated — before the headset has a chance to sleep — and downloads the file independently in the background. The headset can sleep as many times as it likes; the download keeps going. Full resume support means even a complete power cut won't lose progress.
 
 ---
 
@@ -125,5 +129,5 @@ EasyQuestUpdater installs firmware via **ADB sideload**, which is an unofficial 
 - Windows 10 or 11
 - Google Chrome or Microsoft Edge
 - ADB (see setup above)
-- Meta Quest 3 headset with Developer Mode enabled
+- Meta Quest headset (Quest 2, 3, Pro, or later) with Developer Mode enabled
 - USB cable (use the one that came with your Quest)
